@@ -5,13 +5,16 @@ DB_NAME = "tasks.db"
 def get_connection():
     return sqlite3.connect(DB_NAME)
 
-def get_all_tasks():
+def get_tasks_by_user(user_id):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, title, status FROM tasks")
-    rows = cursor.fetchall()
+    cursor.execute(
+        "SELECT id, title, status FROM tasks WHERE user_id = ?",
+        (user_id,)
+    )
 
+    rows = cursor.fetchall()
     conn.close()
 
     tasks = []
@@ -24,13 +27,14 @@ def get_all_tasks():
 
     return tasks
 
-def add_task(title):
+
+def add_task(title,user_id):
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute(
-        "INSERT INTO tasks (title, status) VALUES (?, ?)",
-        (title, "pending")
+        "INSERT INTO tasks (title, status,user_id) VALUES (?, ?,?)",
+        (title, "pending",user_id)
     )
 
     conn.commit()
@@ -41,7 +45,8 @@ def add_task(title):
     return {
         "id": task_id,
         "title": title,
-        "status": "pending"
+        "status": "pending",
+        "user_id":user_id
     }
 
 def update_task_status(task_id, status):
@@ -75,3 +80,35 @@ def delete_task(task_id):
     conn.close()
 
     return deleted
+
+def create_user(username,password):
+    conn=get_connection()
+    cursor=conn.cursor()
+
+    try:
+        cursor.execute(
+            "INSERT INTO users (username,password) VALUES(?,?)",
+            (username,password)
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+    except sqlite3.IntegrityError:
+        return None
+        
+    finally:
+        conn.close()
+
+def login_user(username):
+    conn=get_connection()
+    cursor=conn.cursor()
+
+    cursor.execute(
+        "SELECT id,username,password FROM users WHERE username=?",
+        (username,)
+    )
+
+    user=cursor.fetchone()
+    conn.close()
+
+    return user

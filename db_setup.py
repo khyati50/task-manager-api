@@ -13,9 +13,14 @@ CREATE TABLE IF NOT EXISTS tasks (
     title TEXT NOT NULL,
     status TEXT NOT NULL,
     user_id INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES user(id)
+    created_at TEXT NOT NULL,
+    due_date TEXT,
+    priority TEXT DEFAULT 'medium',
+    subject TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 )
 """)
+
 # create users table
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (

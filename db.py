@@ -1,18 +1,32 @@
 import sqlite3
+from werkzeug.security import check_password_hash,generate_password_hash
+import datetime
 
 DB_NAME = "tasks.db"
 
 def get_connection():
     return sqlite3.connect(DB_NAME)
 
-def get_tasks_by_user(user_id):
+def get_tasks_by_user(user_id, status=None,subject=None):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        "SELECT id, title, status FROM tasks WHERE user_id = ?",
-        (user_id,)
-    )
+    if status:
+        cursor.execute(
+            """
+            SELECT id, title, status, created_at, due_date, priority,subject
+            FROM tasks WHERE user_id = ? AND status = ?
+            """,
+            (user_id, status)
+        )
+    else:
+        cursor.execute(
+            """
+            SELECT id, title, status, created_at, due_date, priority,subject
+            FROM tasks WHERE user_id = ?
+            """,
+            (user_id,)
+        )
 
     rows = cursor.fetchall()
     conn.close()
@@ -22,23 +36,31 @@ def get_tasks_by_user(user_id):
         tasks.append({
             "id": row[0],
             "title": row[1],
-            "status": row[2]
+            "status": row[2],
+            "created_at": row[3],
+            "due_date": row[4],
+            "priority": row[5],
+            "subject":row[6]
         })
 
     return tasks
 
 
-def add_task(title,user_id):
+def add_task(title, user_id, due_date=None, priority="medium",subject=None):
     conn = get_connection()
     cursor = conn.cursor()
 
+    created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
     cursor.execute(
-        "INSERT INTO tasks (title, status,user_id) VALUES (?, ?,?)",
-        (title, "pending",user_id)
+        """
+        INSERT INTO tasks (title, status, user_id, created_at, due_date, priority,subject)
+        VALUES (?, ?, ?, ?, ?, ?,?)
+        """,
+        (title, "pending", user_id, created_at, due_date, priority,subject)
     )
 
     conn.commit()
-
     task_id = cursor.lastrowid
     conn.close()
 
@@ -46,18 +68,47 @@ def add_task(title,user_id):
         "id": task_id,
         "title": title,
         "status": "pending",
-        "user_id":user_id
+        "user_id": user_id,
+        "created_at": created_at,
+        "due_date": due_date,
+        "priority": priority,
+        "subject":subject
     }
 
-def update_task_status(task_id, status):
+
+def update_task(task_id, user_id, title=None, status=None,due_date=None,priority=None,subject=None):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        "UPDATE tasks SET status = ? WHERE id = ?",
-        (status, task_id)
-    )
+    fields = []
+    values = []
 
+    if title:
+        fields.append("title = ?")
+        values.append(title)
+
+    if status:
+        fields.append("status = ?")
+        values.append(status)
+    if due_date:
+        fields.append("due_date = ?")
+        values.append(due_date)
+    if priority:
+        fields.append("priority = ?")
+        values.append(priority)
+    if subject:
+        fields.append("subject=?")
+        values.append(subject)
+
+    values.append(task_id)
+    values.append(user_id)
+
+    query = f"""
+    UPDATE tasks SET {", ".join(fields)}
+    WHERE id = ? AND user_id = ?
+    """
+
+    cursor.execute(query, values)
     conn.commit()
 
     updated = cursor.rowcount
@@ -65,13 +116,14 @@ def update_task_status(task_id, status):
 
     return updated
 
-def delete_task(task_id):
+
+def delete_task(task_id,user_id):
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute(
-        "DELETE FROM tasks WHERE id = ?",
-        (task_id,)
+        "DELETE FROM tasks WHERE id = ? AND user_id = ?",
+        (task_id,user_id)
     )
 
     conn.commit()
@@ -85,10 +137,12 @@ def create_user(username,password):
     conn=get_connection()
     cursor=conn.cursor()
 
+    hashed_password=generate_password_hash(password)
+
     try:
         cursor.execute(
             "INSERT INTO users (username,password) VALUES(?,?)",
-            (username,password)
+            (username,hashed_password)
         )
         conn.commit()
         return cursor.lastrowid
@@ -99,7 +153,7 @@ def create_user(username,password):
     finally:
         conn.close()
 
-def login_user(username):
+def get_user_by_username(username):
     conn=get_connection()
     cursor=conn.cursor()
 

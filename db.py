@@ -7,26 +7,26 @@ DB_NAME = "tasks.db"
 def get_connection():
     return sqlite3.connect(DB_NAME)
 
-def get_tasks_by_user(user_id, status=None,subject=None):
+def get_tasks_by_user(user_id, status=None, limit=10, offset=0, sort="created_at"):
     conn = get_connection()
     cursor = conn.cursor()
 
+    base_query = """
+        SELECT id, title, status, created_at, due_date, priority, subject
+        FROM tasks
+        WHERE user_id = ?
+    """
+
+    params = [user_id]
+
     if status:
-        cursor.execute(
-            """
-            SELECT id, title, status, created_at, due_date, priority,subject
-            FROM tasks WHERE user_id = ? AND status = ?
-            """,
-            (user_id, status)
-        )
-    else:
-        cursor.execute(
-            """
-            SELECT id, title, status, created_at, due_date, priority,subject
-            FROM tasks WHERE user_id = ?
-            """,
-            (user_id,)
-        )
+        base_query += " AND status = ?"
+        params.append(status)
+
+    base_query += f" ORDER BY {sort} LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+
+    cursor.execute(base_query, params)
 
     rows = cursor.fetchall()
     conn.close()
@@ -40,7 +40,7 @@ def get_tasks_by_user(user_id, status=None,subject=None):
             "created_at": row[3],
             "due_date": row[4],
             "priority": row[5],
-            "subject":row[6]
+            "subject": row[6]
         })
 
     return tasks

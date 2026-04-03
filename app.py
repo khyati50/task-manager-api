@@ -15,23 +15,53 @@ app = Flask(__name__)
 CORS(app)
 app.config['SECRET_KEY'] = config.SECRET_KEY
 
+ALLOWED_STATUSES = ["pending", "in-progress", "done"] 
+ALLOWED_PRIORITIES = ["low", "medium", "high"]
+ALLOWED_SORT_FIELDS = ["created_at", "due_date", "priority"]
+
+def validate_date(due_date): 
+    if not due_date:
+        return None
+    try:
+        datetime.datetime.strptime(due_date, "%Y-%m-%d")
+    except ValueError:
+        return "Invalid date format (YYYY-MM-DD)"
+    return None
+    
+def validate_priority(priority): 
+    if priority not in ALLOWED_PRIORITIES: 
+        return "Invalid priority"
+    return None 
+
+def validate_status(status): 
+    if status and status not in ALLOWED_STATUSES:
+         return "Invalid status" 
+    return None
+    
+def validate_json(data): 
+    if not data:
+         return "Invalid JSON body" 
+    return None
+
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = None
+        auth_header = request.headers.get("Authorization")
 
-        if 'Authorization' in request.headers:
-            token = request.headers['Authorization'].split(" ")[1]
-
-        if not token:
+        if not auth_header: 
             return jsonify({'error': 'Token is missing'}), 401
+
+        try: token = auth_header.split(" ")[1] 
+        except IndexError: 
+            return jsonify({'error': 'Invalid token format'}), 401
 
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
-            user_id = data['user_id']
-        except:
-            return jsonify({'error': 'Invalid or expired token'}), 401
-
+            user_id = data['user_id'] 
+        except jwt.ExpiredSignatureError: 
+            return jsonify({'error': 'Token expired'}), 401 
+        except jwt.InvalidTokenError: 
+            return jsonify({'error': 'Invalid token'}), 401 
         return f(user_id, *args, **kwargs)
 
     return decorated
@@ -46,55 +76,94 @@ def handle_tasks(user_id):
 
         if request.method=='GET':
             status = request.args.get("status")  
-            tasks = get_tasks_by_user(user_id, status)
+            page = request.args.get("page", 1, type=int)
+            limit = request.args.get("limit", 10, type=int)
+            sort = request.args.get("sort", "created_at")
+            error = validate_status(status) 
+            if error: 
+                return jsonify({"error": error}), 400
+            
+            if page < 1 or limit < 1:
+                return jsonify({"error": "Page and limit must be positive"}), 400
+            
+            if limit > 100: 
+                limit = 100
+            
+            if sort not in ALLOWED_SORT_FIELDS:
+                return jsonify({"error": "Invalid sort field"}), 400
 
-            return jsonify(tasks), 200
+            offset = (page - 1) * limit
+            
+            tasks = get_tasks_by_user(user_id, status,limit,offset,sort)
+            return jsonify({ 
+                "page": page,
+                "limit": limit, 
+                "tasks": tasks 
+                }), 200
 
         if request.method == 'POST':
-            data = request.get_json()
+            data = request.get_json(silent=True)
+            error = validate_json(data) 
+            if error: 
+                return jsonify({"error": error}), 400
+            
             title = data.get("title")
             due_date = data.get("due_date")
             priority = data.get("priority", "medium")
             subject=data.get("subject")
 
-            if priority not in ["low", "medium", "high"]:
-                return jsonify({"error": "Invalid priority"}), 400
-
             if not title or title.strip() == "":
                 return jsonify({
                     "error": "Task title is required"
                 }), 400
+            
+            if subject is not None and subject.strip() == "":
+                return jsonify({"error": "Subject cannot be empty"}), 400
+            
+            error = validate_priority(priority) 
+            if error:
+                 return jsonify({"error": error}), 400 
+            
+            error = validate_date(due_date) 
+            if error:
+                return jsonify({"error": error}), 400
 
             new_task = add_task(title,user_id,due_date, priority,subject)
             return jsonify(new_task), 201
 
-@app.route('/tasks/<int:task_id>', methods=['PUT'])
+@app.route('/tasks/<int:task_id>', methods=['PUT','PATCH'])
 @token_required
 def update_task_route(user_id,task_id):
-    data = request.get_json()
-    ALLOWED_STATUSES = ["pending", "in-progress", "done"]
-    ALLOWED_PRIORITIES = ["low", "medium", "high"]
+    data = request.get_json(silent=True)
+    error = validate_json(data)
+    if error:
+        return jsonify({"error": error}), 400
+    
     title = data.get("title")
     status = data.get("status")
     due_date = data.get("due_date")
     priority = data.get("priority")
     subject=data.get("subject")
+    if subject is not None and subject.strip() == "":
+        return jsonify({"error": "Subject cannot be empty"}), 400
 
-    if not title and not status and not due_date and not priority and not subject:
+    if all(v is None for v in [title, status, due_date, priority, subject]):
         return jsonify({
             "error": "Nothing to update"
         }), 400
 
-    if status and status not in ALLOWED_STATUSES:
-        return jsonify({
-            "error": "Status is required"
-        }), 400
+    error = validate_status(status)
+    if error:
+        return jsonify({"error": error}), 400 
     
-    if priority and priority not in ALLOWED_PRIORITIES:
-        return jsonify({
-            "error": "Invalid priority. Allowed: low, medium, high"
-        }), 400
-
+    error = validate_priority(priority) if priority else None 
+    if error: 
+        return jsonify({"error": error}), 400 
+    
+    error = validate_date(due_date) 
+    if error:
+        return jsonify({"error": error}), 400
+    
     updated = update_task(task_id, user_id, title, status, due_date, priority,subject)
 
     if updated == 0:
@@ -122,7 +191,10 @@ def delete_task_route(user_id,task_id):
 
 @app.route('/register',methods=['POST'])
 def register():
-    data=request.get_json()
+    data=request.get_json(silent=True)
+    error = validate_json(data) 
+    if error: 
+        return jsonify({"error": error}), 400
 
     username=data.get('username')
     password=data.get('password')
@@ -146,7 +218,10 @@ def register():
 
 @app.route('/login',methods=['POST'])
 def login():
-    data=request.get_json()
+    data=request.get_json(silent=True)
+    error = validate_json(data) 
+    if error:
+        return jsonify({"error": error}), 400
 
     username=data.get('username')
     password=data.get('password')

@@ -1,19 +1,22 @@
 # Student Task Manager API
 
-A RESTful backend API for managing student academic tasks, built using Flask and SQLite.  
-This project demonstrates core backend concepts such as authentication, authorization, database design, and clean API structure.
+A secure RESTful backend API for managing student academic tasks.
+Built using Flask and SQLite, featuring JWT-based authentication,
+pagination, filtering, and structured API design.
 
 ---
 
 ## Features
 
-- 🔐 User authentication using JWT (JSON Web Tokens)
-- 📝 Create, read, update, and delete tasks (CRUD)
-- 📅 Due dates for tasks
-- ⚡ Priority levels (low, medium, high)
-- 📚 Subject/course tagging for tasks
+- 🔐 JWT-based authentication with token expiry
+- 📝 Full CRUD operations for task management
+- 📊 Pagination and sorting for scalable data retrieval
 - 🔍 Filter tasks by status (pending, in-progress, done)
-- 👤 Tasks are user-specific (no cross-user access)
+- ⚡ Priority-based task organization
+- 📅 Due date tracking
+- 👤 User-specific data isolation (secure access)
+- ✅ Robust input validation and error handling
+- 🔒 Password hashing using Werkzeug
 
 ---
 
@@ -36,6 +39,7 @@ This project demonstrates core backend concepts such as authentication, authoriz
 4. This token must be included in the `Authorization` header for all protected routes
 
 **Authorization Header Format:**
+
 ```
 Authorization: Bearer <your-jwt-token>
 ```
@@ -46,26 +50,35 @@ Authorization: Bearer <your-jwt-token>
 
 ### Authentication
 
-| Method | Endpoint    | Description                  |
-|--------|-------------|------------------------------|
-| POST   | `/register` | Register a new user          |
-| POST   | `/login`    | Login and receive JWT token  |
+| Method | Endpoint    | Description                 |
+| ------ | ----------- | --------------------------- |
+| POST   | `/register` | Register a new user         |
+| POST   | `/login`    | Login and receive JWT token |
 
 ### Tasks (Protected Routes)
 
-| Method | Endpoint                | Description                      |
-|--------|-------------------------|----------------------------------|
-| GET    | `/tasks`                | Get all tasks                    |
-| GET    | `/tasks?status=pending` | Filter tasks by status           |
-| POST   | `/tasks`                | Create a new task                |
-| PUT    | `/tasks/<id>`           | Update task (title/status/etc.)  |
-| DELETE | `/tasks/<id>`           | Delete a task                    |
+| Method | Endpoint    | Description                                         |
+| ------ | ----------- | --------------------------------------------------- |
+| GET    | /tasks      | Get tasks (supports pagination, filtering, sorting) |
+| POST   | /tasks      | Create a new task                                   |
+| PATCH  | /tasks/<id> | Update task (status, title, etc.)                   |
+| DELETE | /tasks/<id> | Delete a task                                       |
+
+### Query Parameters (GET /tasks)
+
+| Parameters | Description                                    | Default    |
+| ---------- | ---------------------------------------------- | ---------- |
+| page       | Page number                                    | 1          |
+| limit      | Number of tasks per page (max 100)             | 10         |
+| status     | Filter by task status                          | optional   |
+| sort       | Sort by field (created_at, due_date, priority) | created_at |
 
 ---
 
 ## Request Examples
 
 ### Register User
+
 ```json
 POST /register
 {
@@ -75,6 +88,7 @@ POST /register
 ```
 
 ### Login
+
 ```json
 POST /login
 {
@@ -84,6 +98,7 @@ POST /login
 ```
 
 **Response:**
+
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -91,6 +106,7 @@ POST /login
 ```
 
 ### Create Task
+
 ```json
 POST /tasks
 Authorization: Bearer <token>
@@ -103,7 +119,13 @@ Authorization: Bearer <token>
 }
 ```
 
+### Get Tasks with Pagination
+
+GET /tasks?page=2&limit=5&sort=due_date
+Authorization: Bearer <token>
+
 ### Update Task
+
 ```json
 PUT /tasks/1
 Authorization: Bearer <token>
@@ -118,7 +140,7 @@ Authorization: Bearer <token>
 ## Status Codes
 
 | Code | Meaning                            |
-|------|------------------------------------|
+| ---- | ---------------------------------- |
 | 200  | Success                            |
 | 201  | Created successfully               |
 | 400  | Bad request (invalid input)        |
@@ -147,33 +169,39 @@ student-task-manager/
 ## How to Run Locally
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/student-task-manager.git
    cd student-task-manager
    ```
 
 2. **Create and activate virtual environment**
+
    ```bash
    python3 -m venv venv
    source venv/bin/activate
    ```
 
 3. **Install dependencies**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 4. **Create `.env` file**
+
    ```bash
    echo "SECRET_KEY=your-secret-key-here" > .env
    ```
 
 5. **Initialize database**
+
    ```bash
    python3 db_setup.py
    ```
 
 6. **Run the application**
+
    ```bash
    python3 app.py
    ```
@@ -188,11 +216,13 @@ student-task-manager/
 - Secrets are managed using environment variables (`.env`)
 - SQLite is used for simplicity and learning purposes
 - All task routes are protected and require JWT authentication
+- JWT tokens expire after 1 hour
 
 ---
 
 ## Author
 
-**Your Name**  
+**Khyati Anand**
+
 - GitHub: [@khyati50](https://github.com/khyati50)
 - LinkedIn: [khyati anand](https://linkedin.com/in/khyati-anand-b210b6345)

@@ -7,12 +7,14 @@ DB_NAME = "tasks.db"
 def get_connection():
     return sqlite3.connect(DB_NAME)
 
-def get_tasks_by_user(user_id, status=None, limit=10, offset=0, sort="created_at"):
+def get_tasks_by_user(user_id, status=None, limit=10, offset=0, sort=None,tag=None):
     conn = get_connection()
     cursor = conn.cursor()
 
-    base_query = """
-        SELECT id, title, status, created_at, due_date, priority, subject
+    allowed_sort = ["created_at", "due_date", "priority"]
+
+    query = """
+        SELECT id, title, status, created_at, due_date, priority, subject,tag
         FROM tasks
         WHERE user_id = ?
     """
@@ -20,13 +22,22 @@ def get_tasks_by_user(user_id, status=None, limit=10, offset=0, sort="created_at
     params = [user_id]
 
     if status:
-        base_query += " AND status = ?"
+        query += " AND status = ?"
         params.append(status)
 
-    base_query += f" ORDER BY {sort} LIMIT ? OFFSET ?"
+    if tag is not None:
+        query += " AND tag LIKE ?"
+        params.append(f"%{tag}%")
+
+    if sort in allowed_sort:
+        query += f" ORDER BY {sort}"
+    else:
+        query += " ORDER BY created_at"
+
+    query += " LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
-    cursor.execute(base_query, params)
+    cursor.execute(query, params)
 
     rows = cursor.fetchall()
     conn.close()
@@ -40,24 +51,26 @@ def get_tasks_by_user(user_id, status=None, limit=10, offset=0, sort="created_at
             "created_at": row[3],
             "due_date": row[4],
             "priority": row[5],
-            "subject": row[6]
+            "subject": row[6],
+            "tag": row[7].split(",") if row[7] else []
         })
 
     return tasks
 
 
-def add_task(title, user_id, due_date=None, priority="medium",subject=None):
+def add_task(title, user_id, due_date=None, priority="medium",subject=None,tag=None):
     conn = get_connection()
     cursor = conn.cursor()
 
     created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    tag_str = ",".join(tag) if tag else None
 
     cursor.execute(
         """
-        INSERT INTO tasks (title, status, user_id, created_at, due_date, priority,subject)
-        VALUES (?, ?, ?, ?, ?, ?,?)
+        INSERT INTO tasks (title, status, user_id, created_at, due_date, priority,subject,tag)
+        VALUES (?, ?, ?, ?, ?, ?,?,?)
         """,
-        (title, "pending", user_id, created_at, due_date, priority,subject)
+        (title, "pending", user_id, created_at, due_date, priority,subject,tag_str)
     )
 
     conn.commit()
@@ -72,11 +85,12 @@ def add_task(title, user_id, due_date=None, priority="medium",subject=None):
         "created_at": created_at,
         "due_date": due_date,
         "priority": priority,
-        "subject":subject
+        "subject":subject,
+        "tag":tag or []
     }
 
 
-def update_task(task_id, user_id, title=None, status=None,due_date=None,priority=None,subject=None):
+def update_task(task_id, user_id, title=None, status=None,due_date=None,priority=None,subject=None,tag=None):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -99,6 +113,10 @@ def update_task(task_id, user_id, title=None, status=None,due_date=None,priority
     if subject:
         fields.append("subject=?")
         values.append(subject)
+
+    if tag is not None:
+        fields.append("tag = ?")
+        values.append(",".join(tag))
 
     values.append(task_id)
     values.append(user_id)

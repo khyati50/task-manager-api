@@ -1,4 +1,4 @@
-# Student Task Manager API
+# Task Manager API
 
 A secure RESTful backend API for managing student academic tasks.
 Built using Flask and SQLite, featuring JWT-based authentication,
@@ -17,6 +17,7 @@ pagination, filtering, and structured API design.
 - 👤 User-specific data isolation (secure access)
 - ✅ Robust input validation and error handling
 - 🔒 Password hashing using Werkzeug
+- 🏷️ Tag-based categorization and filtering
 
 ---
 
@@ -28,6 +29,14 @@ pagination, filtering, and structured API design.
 - PyJWT (JWT authentication)
 - Werkzeug (password hashing)
 - Flask-CORS
+
+---
+
+## Highlights
+
+- Designed modular REST API with scalable filtering and pagination
+- Implemented JWT-based authentication with secure route protection
+- Built dynamic query system supporting multi-parameter filtering (status, tags, sorting)
 
 ---
 
@@ -72,10 +81,22 @@ Authorization: Bearer <your-jwt-token>
 | limit      | Number of tasks per page (max 100)             | 10         |
 | status     | Filter by task status                          | optional   |
 | sort       | Sort by field (created_at, due_date, priority) | created_at |
+| tag        | Filter tasks by tag (e.g., urgent, exam)       | optional   |
 
 ---
 
 ## Request Examples
+
+### Filter Tasks (Combined Example)
+
+````bash
+GET /tasks?tag=urgent&status=pending&sort=due_date
+Authorization: Bearer <token>
+
+**Description:**
+- contain the tag `urgent`
+- have status `pending`
+- sorted by `due_date`
 
 ### Register User
 
@@ -85,7 +106,7 @@ POST /register
   "username": "student1",
   "password": "mypassword"
 }
-```
+````
 
 ### Login
 

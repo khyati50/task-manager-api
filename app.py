@@ -78,7 +78,8 @@ def handle_tasks(user_id):
             status = request.args.get("status")  
             page = request.args.get("page", 1, type=int)
             limit = request.args.get("limit", 10, type=int)
-            sort = request.args.get("sort", "created_at")
+            sort = request.args.get("sort")
+            tag = request.args.get("tag")
             error = validate_status(status) 
             if error: 
                 return jsonify({"error": error}), 400
@@ -90,11 +91,11 @@ def handle_tasks(user_id):
                 limit = 100
             
             if sort not in ALLOWED_SORT_FIELDS:
-                return jsonify({"error": "Invalid sort field"}), 400
+                sort = "created_at"
 
             offset = (page - 1) * limit
             
-            tasks = get_tasks_by_user(user_id, status,limit,offset,sort)
+            tasks = get_tasks_by_user(user_id, status, limit, offset, sort, tag)
             return jsonify({ 
                 "page": page,
                 "limit": limit, 
@@ -111,6 +112,7 @@ def handle_tasks(user_id):
             due_date = data.get("due_date")
             priority = data.get("priority", "medium")
             subject=data.get("subject")
+            tag = data.get("tag")
 
             if not title or title.strip() == "":
                 return jsonify({
@@ -120,6 +122,9 @@ def handle_tasks(user_id):
             if subject is not None and subject.strip() == "":
                 return jsonify({"error": "Subject cannot be empty"}), 400
             
+            if tag is not None and not isinstance(tag, list):
+                return jsonify({"error": "Tag must be a list"}), 400
+            
             error = validate_priority(priority) 
             if error:
                  return jsonify({"error": error}), 400 
@@ -128,7 +133,7 @@ def handle_tasks(user_id):
             if error:
                 return jsonify({"error": error}), 400
 
-            new_task = add_task(title,user_id,due_date, priority,subject)
+            new_task = add_task(title,user_id,due_date, priority,subject,tag)
             return jsonify(new_task), 201
 
 @app.route('/tasks/<int:task_id>', methods=['PUT','PATCH'])
@@ -144,10 +149,12 @@ def update_task_route(user_id,task_id):
     due_date = data.get("due_date")
     priority = data.get("priority")
     subject=data.get("subject")
+    tag = data.get("tag")
+
     if subject is not None and subject.strip() == "":
         return jsonify({"error": "Subject cannot be empty"}), 400
 
-    if all(v is None for v in [title, status, due_date, priority, subject]):
+    if all(v is None for v in [title, status, due_date, priority, subject,tag]):
         return jsonify({
             "error": "Nothing to update"
         }), 400
@@ -164,7 +171,10 @@ def update_task_route(user_id,task_id):
     if error:
         return jsonify({"error": error}), 400
     
-    updated = update_task(task_id, user_id, title, status, due_date, priority,subject)
+    if tag is not None and not isinstance(tag, list):
+        return jsonify({"error": "Tag must be a list"}), 400
+    
+    updated = update_task(task_id, user_id, title, status, due_date, priority, subject, tag)
 
     if updated == 0:
         return jsonify({

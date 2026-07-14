@@ -1,6 +1,6 @@
 # Task Manager API
 
-A secure RESTful backend API for managing student academic tasks.
+A secure RESTful backend API for managing and organizing user tasks.
 Built using Flask and SQLite, featuring JWT-based authentication,
 pagination, filtering, and structured API design.
 
@@ -103,7 +103,7 @@ Authorization: Bearer <token>
 ```json
 POST /register
 {
-  "username": "student1",
+  "username": "user1",
   "password": "mypassword"
 }
 ````
@@ -113,7 +113,7 @@ POST /register
 ```json
 POST /login
 {
-  "username": "student1",
+  "username": "user1",
   "password": "mypassword"
 }
 ```
@@ -174,7 +174,7 @@ Authorization: Bearer <token>
 ## Project Structure
 
 ```
-student-task-manager/
+task-manager-api/
 ├── app.py           # Main Flask application
 ├── db.py            # Database operations
 ├── db_setup.py      # Database initialization
@@ -192,8 +192,8 @@ student-task-manager/
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/YOUR_USERNAME/student-task-manager.git
-   cd student-task-manager
+   git clone https://github.com/YOUR_USERNAME/task-manager-api.git
+   cd task-manager-api
    ```
 
 2. **Create and activate virtual environment**
@@ -233,7 +233,7 @@ student-task-manager/
 
 ## Notes
 
-- This is a backend-only project (frontend coming soon)
+- This project focuses on backend API design and RESTful architecture
 - Secrets are managed using environment variables (`.env`)
 - SQLite is used for simplicity and learning purposes
 - All task routes are protected and require JWT authentication
